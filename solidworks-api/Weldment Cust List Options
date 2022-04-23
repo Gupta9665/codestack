@@ -1,0 +1,117 @@
+'Batch Uncheck Weldment Document Options.swp ------------- 04/23/22
+
+'Description: Macro to uncheck options under Tools > Options > Document Properties > Weldments.
+
+'Pre-Condition: Any active assembly file.
+
+'Post-Condition: Macro will find all the part files in the active assembly and will uncheck the following 2 Weldment Document Options
+
+'        1. Automatically create cut lists
+'        2. Automatically update cut lists
+
+'Macro will resolve the lightweight components and will skip the suppressed parts
+
+
+' Macro libraries are set to SW2022 version. In case you're running a different version then update/correct the macro
+' references as suggested in this video (don't worry on the fact that video is for fixing missing library error but check
+' the process to update your macro library):  https://www.youtube.com/watch?v=uieXLNVf5dE
+
+' Please back up your data before use and USE AT OWN RISK
+'
+'------------------------------------------------------------------------------------
+' Created by Deepak Gupta (Boxer's SOLIDWORKS Blog, India) http://gupta9665.wordpress.com/
+'------------------------------------------------------------------------------------
+' Disclaimer:
+' This macro is provided as is.  No claims, support, refund, safety net, or
+' warranties are expressed or implied.  By using this macro and/or its code in
+' any way whatsoever, the user and any entities which the user represents,
+' agree to hold the authors free of any and all liability.
+' Free distribution and use of this code in other free works is welcome.
+' You may redistribute it and/or modify it on the condition that this header is retained.
+' All other forms of distribution (i.e., not free, fee for delivery, etc) are prohibited
+' without the expressed written consent by the authors.
+' Use at your own risk!
+' ------------------------------------------------------------------------------
+
+Dim swApp       As SldWorks.SldWorks
+Dim swModel     As SldWorks.ModelDoc2
+Dim swAssy      As SldWorks.AssemblyDoc
+Dim swComp      As SldWorks.Component2
+Dim swCompModel As ModelDoc2
+Dim dict        As Dictionary
+Dim vComps      As Variant
+Dim i           As Integer
+
+
+Sub Main()
+
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    Set swApp = Application.SldWorks
+    Set swModel = swApp.ActiveDoc
+    
+    'Get is there is any active file
+    If swModel Is Nothing Then
+        MsgBox "Macro works only with assembly"
+        Exit Sub
+    End If
+    
+    'Get is there is the active file is an assembly
+    If swModel.GetType <> swDocASSEMBLY Then
+        MsgBox "Macro works only with assembly"
+        Exit Sub
+    End If
+    
+    Set swAssy = swModel
+    
+    'Resolve the lightweight components
+    swAssy.ResolveAllLightWeightComponents False
+    
+    'Get Assy Components
+    vComps = swAssy.GetComponents(False)
+    
+    'Check if there are any components in the assembly
+    If IsEmpty(vComps) Then
+        MsgBox "No component found in the assembly"
+        Exit Sub
+    End If
+    
+    
+    'Traverse the components, get unique part components and upate theior weldment options
+    
+    For i = 0 To UBound(vComps)
+        
+        Set swComp = vComps(i)
+        
+        'Check component is not suppressed
+        If swComp.IsSuppressed = False Then
+        
+            'Check component is a part file
+            If LCase(Right(swComp.GetPathName, 6)) = "sldprt" Then
+            
+                If Not dict.Exists(UCase(swComp.GetPathName)) Then
+                    dict.Add UCase(swComp.GetPathName), ""
+                    
+                    Set swCompModel = swComp.GetModelDoc2
+                    
+                    If Not swCompModel Is Nothing Then
+                        swCompModel.Extension.SetUserPreferenceToggle swWeldmentEnableAutomaticCutList, swDetailingNoOptionSpecified, False
+                        swCompModel.Extension.SetUserPreferenceToggle swWeldmentEnableAutomaticUpdate, swDetailingNoOptionSpecified, False
+                    End If
+                    
+                End If
+                    
+            End If
+            
+        End If
+                
+    Next
+    
+
+MsgBox "Part Files Updated!!"
+Set dict = Nothing
+Set swAssy = Nothing
+Set swModel = Nothing
+
+
+End Sub
